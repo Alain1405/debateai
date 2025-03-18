@@ -158,7 +158,12 @@ async def main():
 
     print(f"\n{Fore.YELLOW}=== Debate Session Started ==={Style.RESET_ALL}\n")
 
-    while True:
+    # Add maximum iterations to prevent infinite loops
+    max_iterations = 50
+    iteration_count = 0
+
+    while iteration_count < max_iterations:
+        iteration_count += 1
         conversation_id = str(uuid.uuid4().hex[:16])
         current_response = []
 
@@ -185,6 +190,12 @@ async def main():
 
         inputs = result.to_input_list()
         print("\n")
+
+        # Add feedback about remaining iterations
+        if iteration_count == max_iterations:
+            logger.info("System", f"Debate reached the maximum of {max_iterations} turns and will now end.")
+
+    print(f"{Fore.YELLOW}=== Debate Session Ended (Maximum turns reached) ==={Style.RESET_ALL}")
 
 
 if __name__ == "__main__":

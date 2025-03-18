@@ -19,8 +19,16 @@ class DebateLogger:
             self._format_debug(agent_name, message)
             
     def info(self, agent_name: str, message: str):
+        """Log informational messages with safe handling of agent names."""
         if self.level.value <= LogLevel.INFO.value:
             self._format_message(agent_name, message)
+    
+    def error(self, agent_name: str, message: str):
+        """Log error messages regardless of log level."""
+        wrapped = textwrap.fill(message, width=self.width - 4)
+        indented = textwrap.indent(wrapped, "    ")
+        print(f"{Fore.RED}ERROR - {agent_name}:{Style.RESET_ALL}\n{indented}\n")
+        print(f"{Fore.RED}{'─' * self.width}{Style.RESET_ALL}")
             
     def separator(self):
         if self.level.value <= LogLevel.INFO.value:
