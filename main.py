@@ -9,6 +9,7 @@ from colorama import init, Fore, Style
 import textwrap
 
 from agents import Agent, RawResponsesStreamEvent, Runner, TResponseInputItem, trace
+from logger import DebateLogger, LogLevel
 
 load_dotenv()
 
@@ -144,6 +145,9 @@ print(moderator.instructions)
 
 
 async def main():
+    # Configure logger
+    logger = DebateLogger(LogLevel.INFO)  # Can be changed to DEBUG or QUIET
+    
     inputs: list[TResponseInputItem] = [
         {
             "content": "Start the debate by introducing the topic and handing over the conversation.",
@@ -158,10 +162,11 @@ async def main():
         current_response = []
 
         with trace("Routing example", group_id=conversation_id):
-            # Debug: Log current conversation history
-            print(f"\n{Fore.GREEN}Debug - Conversation history for {result.current_agent.name if 'result' in locals() else 'Moderator'}:{Style.RESET_ALL}")
-            for msg in inputs:
-                print(f"  {msg.get('role', 'No role')}: {msg.get('content', 'Empty message')[:100]}...")
+            # Debug logging of conversation history
+            agent_name = result.current_agent.name if 'result' in locals() else 'Moderator'
+            debug_msg = "\n".join(f"{msg.get('role', 'No role')}: {msg.get('content', 'Empty message')[:100]}..." 
+                                for msg in inputs)
+            logger.debug(agent_name, debug_msg)
 
             result = Runner.run_streamed(moderator, input=inputs)
             async for event in result.stream_events():
@@ -174,15 +179,11 @@ async def main():
                 elif isinstance(data, ResponseContentPartDoneEvent):
                     full_message = "".join(current_response)
                     print("\n")
-                    print(format_message(result.current_agent.name, full_message))
-                    print(f"{Fore.YELLOW}{'─' * 80}{Style.RESET_ALL}")
+                    logger.info(result.current_agent.name, full_message)
+                    logger.separator()
 
         inputs = result.to_input_list()
         print("\n")
-
-        # user_msg = input("Enter a message: ")
-        # inputs.append({"content": user_msg, "role": "user"})
-        # agent = result.current_agent
 
 
 if __name__ == "__main__":
