@@ -16,6 +16,7 @@ load_dotenv()
 # Initialize colorama
 init()
 
+PARTICIPANTS = 2
 
 def format_message(speaker: str, message: str) -> str:
     """Format a message with speaker name and wrapped text."""
@@ -56,7 +57,7 @@ def select_topic():
 
 
 def create_moderator(debate_format, topic, debaters):
-    moderator_prompt = f"""You are a debate moderator. Your role is to facilitate a discussion between 10 different personas on the topic of {topic['name']}.
+    moderator_prompt = f"""You are a debate moderator. Your role is to facilitate a discussion between {PARTICIPANTS} different personas on the topic of {topic['name']}.
 
 The debate follows the {debate_format['name']} format: {debate_format['structure']}
 
@@ -113,7 +114,7 @@ Please engage in any debate by staying true to your persona's beliefs and charac
 """
 debaters = []
 # Define debating agents
-for persona in DEBATE_CONFIGS["personas"][:2]:
+for persona in DEBATE_CONFIGS["personas"][:PARTICIPANTS]:
     formatted_key_issues = "\n".join(f"- {issue}" for issue in persona["key_issues"])
 
     current_prompt = prompt_template.format(
