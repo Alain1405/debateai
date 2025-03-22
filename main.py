@@ -1,4 +1,4 @@
-from agents import Agent, Runner
+from agents import Agent, Runner, WebSearchTool
 from dotenv import load_dotenv
 from constants import DEBATE_CONFIGS
 import uuid
@@ -6,25 +6,18 @@ import asyncio
 
 from openai.types.responses import ResponseContentPartDoneEvent, ResponseTextDeltaEvent
 from colorama import init, Fore, Style
-import textwrap
 
 from agents import Agent, RawResponsesStreamEvent, Runner, TResponseInputItem, trace
-from logger import DebateLogger, LogLevel
+from agents.extensions.handoff_prompt import RECOMMENDED_PROMPT_PREFIX
+from agent_helpers import CustomAgentHooks
+from pydantic import BaseModel
 
 load_dotenv()
 
 # Initialize colorama
 init()
 
-PARTICIPANTS = 2
-
-def format_message(speaker: str, message: str) -> str:
-    """Format a message with speaker name and wrapped text."""
-    width = 80
-    wrapped_text = textwrap.fill(message, width=width - 4)
-    indented_text = textwrap.indent(wrapped_text, "    ")
-    return f"{Fore.CYAN}{speaker}:{Style.RESET_ALL}\n{indented_text}\n"
-
+PARTICIPANTS = 4
 
 def select_debate_format():
     print("\nAvailable debate formats:")
@@ -60,6 +53,7 @@ def create_moderator(debate_format, topic, debaters):
     moderator_prompt = f"""You are a debate moderator. Your role is to facilitate a discussion between {PARTICIPANTS} different personas on the topic of {topic['name']}.
 
 The debate follows the {debate_format['name']} format: {debate_format['structure']}
+The objective of the debate is to explore different perspectives and arguments on the topic, find common ground and clarify the key points of contention and how they relate to key differences in values.
 
 Your responsibilities:
 - {DEBATE_CONFIGS['moderator']['role']}
@@ -79,15 +73,20 @@ Previous speaker [name] argued: [main points]
 Your key skills:
 {chr(10).join(f'- {skill}' for skill in DEBATE_CONFIGS['moderator']['skills'])}
 
-Start by introducing the topic and format, then manage the discussion flow."""
+Start by introducing the topic and format, then manage the discussion flow. 
+When the conversation is complete, after at least 5 to 10 rounds, provide a summary of the key points discussed and any areas of agreement or disagreement and then stop."""
 
     return Agent(
         name="Moderator",
         instructions=moderator_prompt,
         handoffs=debaters,
         handoff_description="Pass the discussion to the next participant with context.",
+        hooks=CustomAgentHooks(display_name="Moderator"),
+        output_type=FinalResult,
     )
 
+class FinalResult(BaseModel):
+    summary: str
 
 # Get user selections
 selected_topic = select_topic()
@@ -96,7 +95,7 @@ selected_format = select_debate_format()
 print(f"\nDebate Topic: {selected_topic['name']}")
 print(f"Debate Format: {selected_format['name']}")
 
-prompt_template = """You are {name}, a debater with the following core beliefs:
+prompt_template = """You are {name}, you are participating in a debate. Your core beliefs are:
 {beliefs}
 
 Your debate style follows this slogan: {slogan}
@@ -104,13 +103,16 @@ Your debate style follows this slogan: {slogan}
 Key issues you care about:
 {key_issues}
 
-They say these are your blind spots: {blind_spots}
+These are your blind spots: {blind_spots}
 
-The debate will follow the {format_name} format: {format_structure}
+The debate will follow the {format_name} format: {format_structure}.
 
 Current debate topic: {topic}
 
 Please engage in any debate by staying true to your persona's beliefs and characteristics but also following the debate format.
+The objective of the debate is to explore different perspectives and arguments on the topic, find common ground and clarify the key points of contention and how they relate to key differences in values.
+Your tone is in line with your persona. 
+You want your arguments to be based on facts and logic, and for that you have 2 web searches available to use during the debate. Your searches should be biased by your believes, relevant to the topic and help you make a stronger argument. Reference the source of your data when using it.
 """
 debaters = []
 # Define debating agents
@@ -130,14 +132,11 @@ for persona in DEBATE_CONFIGS["personas"][:PARTICIPANTS]:
 
     agent = Agent(
         name=persona["name"],
-        instructions=current_prompt,
+        instructions=f"{RECOMMENDED_PROMPT_PREFIX}: {current_prompt}",
+        tools=[WebSearchTool()],
+        hooks=CustomAgentHooks(display_name=persona["name"]),
     )
-    # print(agent.name)
-    # print(agent.instructions)
     debaters.append(agent)
-    # print("Getting response")
-    # result = Runner.run_sync(agent, "What are your thoughts on climate change?")
-    # print(result.final_output)
 
 # Create moderator first
 moderator = create_moderator(selected_format, selected_topic, debaters)
@@ -146,9 +145,6 @@ print(moderator.instructions)
 
 
 async def main():
-    # Configure logger
-    logger = DebateLogger(LogLevel.INFO)  # Can be changed to DEBUG or QUIET
-    
     inputs: list[TResponseInputItem] = [
         {
             "content": "Start the debate by introducing the topic and handing over the conversation.",
@@ -165,37 +161,21 @@ async def main():
     while iteration_count < max_iterations:
         iteration_count += 1
         conversation_id = str(uuid.uuid4().hex[:16])
-        current_response = []
 
         with trace("Routing example", group_id=conversation_id):
-            # Debug logging of conversation history
-            agent_name = result.current_agent.name if 'result' in locals() else 'Moderator'
-            debug_msg = "\n".join(f"{msg.get('role', 'No role')}: {msg.get('content', 'Empty message')[:100]}..." 
-                                for msg in inputs)
-            logger.debug(agent_name, debug_msg)
-
+            # Run the agent - output will be handled by hooks
             result = Runner.run_streamed(moderator, input=inputs)
             async for event in result.stream_events():
-                if not isinstance(event, RawResponsesStreamEvent):
-                    continue
-                data = event.data
-                if isinstance(data, ResponseTextDeltaEvent):
-                    current_response.append(data.delta)
-                    print(data.delta, end="", flush=True)
-                elif isinstance(data, ResponseContentPartDoneEvent):
-                    full_message = "".join(current_response)
-                    print("\n")
-                    logger.info(result.current_agent.name, full_message)
-                    logger.separator()
+                # We don't need to process output here as hooks will handle it
+                pass
 
         inputs = result.to_input_list()
-        print("\n")
 
         # Add feedback about remaining iterations
         if iteration_count == max_iterations:
-            logger.info("System", f"Debate reached the maximum of {max_iterations} turns and will now end.")
+            print(f"\n{Fore.RED}Debate reached the maximum of {max_iterations} turns and will now end.{Style.RESET_ALL}")
 
-    print(f"{Fore.YELLOW}=== Debate Session Ended (Maximum turns reached) ==={Style.RESET_ALL}")
+    print(f"\n{Fore.YELLOW}=== Debate Session Ended ==={Style.RESET_ALL}")
 
 
 if __name__ == "__main__":
