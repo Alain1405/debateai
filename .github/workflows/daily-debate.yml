@@ -10,6 +10,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Fetch all history for proper git operations
       
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -37,7 +39,8 @@ jobs:
           
       - name: Generate new debate
         run: |
-          poetry run python main.py
+          mkdir -p debates _posts
+          poetry run python main.py --non-interactive --default-format "Mediated Dialogue" --iterations 50
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           
