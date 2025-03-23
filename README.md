@@ -23,7 +23,7 @@ This project explores how artificial intelligence can simulate complex social in
 1. Clone this repository:
    ```bash
    git clone https://github.com/Alain1405/debateai.git
-   cd debatai
+   cd debateai
    ```
 
 2. Install dependencies:

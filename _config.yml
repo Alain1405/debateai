@@ -1,6 +1,6 @@
 title: AI Debate Project
 description: Exploring complex topics through AI-simulated debates
-baseurl: "/debatai"
+baseurl: "/debateai"
 url: "https://alain1405.github.io"
 markdown: kramdown
 theme: minima
