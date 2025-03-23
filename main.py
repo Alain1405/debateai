@@ -44,7 +44,7 @@ def select_topic():
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Run an AI debate simulation")
     parser.add_argument("--participants", type=int, default=4, help="Number of debate participants (default: 4)")
-    parser.add_argument("--iterations", type=int, default=50, help="Maximum number of debate turns (default: 50)")
+    parser.add_argument("--iterations", type=int, default=5, help="Maximum number of debate turns (default: 50)")
     parser.add_argument("--output-dir", type=str, default="_posts", help="Directory for Jekyll blog posts (default: _posts)")
     parser.add_argument("--no-blog", action="store_true", help="Disable Jekyll blog post creation")
     
