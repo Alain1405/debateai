@@ -43,7 +43,7 @@ jobs:
       - name: Generate new debate
         run: |
           mkdir -p debates _posts
-          poetry run python main.py --non-interactive --default-format "Mediated Dialogue" --iterations 50
+          poetry run python main.py --non-interactive --default-format "Mediated Dialogue" --iterations 5
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           
@@ -53,9 +53,14 @@ jobs:
           git config --global user.email 'alain1405@users.noreply.github.com'
           git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/$GITHUB_REPOSITORY
           git checkout "${GITHUB_REF:11}"
-          git add debates/ _posts/
-          git diff --quiet && git diff --staged --quiet || git commit -m "Add debate for $(date +%Y-%m-%d)"
-          git push
+          git add -A  # Add all files, including new and untracked ones
+          git status  # Show status for debugging in action logs
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Add debate for $(date +%Y-%m-%d)"
+            git push
+          fi
       
       # Build and deploy to GitHub Pages
       - name: Setup Pages
