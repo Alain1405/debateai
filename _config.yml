@@ -3,10 +3,11 @@ description: Exploring complex topics through AI-simulated debates
 baseurl: "/debateai"
 url: "https://alain1405.github.io"
 markdown: kramdown
-theme: minima
+remote_theme: pages-themes/minimal@v0.2.0
 plugins:
   - jekyll-feed
   - jekyll-seo-tag
+  - jekyll-remote-theme
 
 # Build settings
 exclude:
