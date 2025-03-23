@@ -44,7 +44,7 @@ jobs:
       - name: Generate new debate
         run: |
           mkdir -p debates _posts
-          poetry run python main.py --non-interactive --default-format "Mediated Dialogue" --iterations 5
+          poetry run python main.py --non-interactive --default-format "Mediated Dialogue" --iterations 50 --participants 10
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           
