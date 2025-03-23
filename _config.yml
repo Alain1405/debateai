@@ -1,0 +1,30 @@
+title: AI Debate Project
+description: Exploring complex topics through AI-simulated debates
+baseurl: "/debatai"
+url: "https://alain1405.github.io"
+markdown: kramdown
+theme: minima
+plugins:
+  - jekyll-feed
+  - jekyll-seo-tag
+
+# Build settings
+exclude:
+  - .github/
+  - venv/
+  - .venv/
+  - debates/
+  - poetry.lock
+  - pyproject.toml
+  - README.md
+  - main.py
+
+# Default front matter for posts
+defaults:
+  -
+    scope:
+      path: ""
+      type: "posts"
+    values:
+      layout: "post"
+      author: "AI Debate System"

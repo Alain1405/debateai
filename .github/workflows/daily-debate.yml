@@ -8,6 +8,9 @@ on:
 jobs:
   generate-debate:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pages: write
     steps:
       - uses: actions/checkout@v3
         with:
@@ -46,9 +49,26 @@ jobs:
           
       - name: Commit and push if changed
         run: |
-         git config --global user.name 'Alain'
-         git config --global user.email 'alain1405@users.noreply.github.com'
-         git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/$GITHUB_REPOSITORY
-         git checkout "${GITHUB_REF:11}"
-         git diff --quiet && git diff --staged --quiet || git commit -m "Add debate for $(date +%Y-%m-%d)"
-         git push
+          git config --global user.name 'Alain'
+          git config --global user.email 'alain1405@users.noreply.github.com'
+          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/$GITHUB_REPOSITORY
+          git checkout "${GITHUB_REF:11}"
+          git add debates/ _posts/
+          git diff --quiet && git diff --staged --quiet || git commit -m "Add debate for $(date +%Y-%m-%d)"
+          git push
+      
+      # Build and deploy to GitHub Pages
+      - name: Setup Pages
+        uses: actions/configure-pages@v3
+      
+      - name: Build with Jekyll
+        uses: actions/jekyll-build-pages@v1
+        with:
+          source: ./
+          destination: ./_site
+      
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v2
+      
+      - name: Deploy to GitHub Pages
+        uses: actions/deploy-pages@v2
