@@ -56,8 +56,6 @@ class CustomAgentHooks(AgentHooks):
         print(self._format_event("START", f"Agent {agent.name} started"))
 
     async def on_end(self, context: RunContextWrapper, agent: Agent, output: Any) -> None:
-        print(f"{Fore.YELLOW}{'='*40}{Style.RESET_ALL}")
-        print(self._format_event("OUTPUT", f"$$$ THIs IS THE END!!!"))
         self.event_counter += 1
         
         # Increment the total calls counter

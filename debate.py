@@ -151,7 +151,6 @@ When the conversation is complete, after at least 5 to 10 rounds, provide a summ
         last_content = ""
         
         while iteration_count < self.max_iterations + 1:
-            print(f"$$$ RUNNING ITERATION {iteration_count} $$$")
             iteration_count += 1
             conversation_id = str(uuid.uuid4().hex[:16])
             
@@ -162,33 +161,18 @@ When the conversation is complete, after at least 5 to 10 rounds, provide a summ
                 # Record the output to transcript - use final_output instead of response
                 if self.save_transcript and hasattr(result, "final_output"):
                     speaker_name = hasattr(result, "last_agent") and result.last_agent.name or "Moderator"
-                    # import pdb; pdb.set_trace()
-                    content = str(result.final_output)
+                    
+                    # Extract content properly from the final_output object
+                    if hasattr(result.final_output, "summary"):
+                        content = result.final_output.summary
+                    else:
+                        content = str(result.final_output)
                     
                     # Add to transcript
                     self.transcript.add_entry(speaker=speaker_name, content=content)
                     last_speaker = speaker_name
                     last_content = content
                 
-                # # Record handoff content if applicable
-                # if hasattr(result, "handoff") and result.handoff:
-                #     handoff_agent = result.handoff
-                #     handoff_result = await Runner.run(handoff_agent, input=result.to_input_list())
-                    
-                #     # Use final_output for handoff result too
-                #     if self.save_transcript and hasattr(handoff_result, "final_output"):
-                #         # Add the handoff agent's response to the transcript
-                #         handoff_speaker = handoff_agent.name
-                #         handoff_content = str(handoff_result.final_output.summary)
-                        
-                #         self.transcript.add_entry(speaker=handoff_speaker, content=f"#B{handoff_content}")
-                #         last_speaker = handoff_speaker
-                #         last_content = handoff_content
-                    
-                #     # Update inputs for next iteration
-                #     inputs = handoff_result.to_input_list()
-                # else:
-                # Update inputs for next iteration
                 inputs = result.to_input_list()
             
             # Add feedback about remaining iterations
@@ -207,4 +191,4 @@ When the conversation is complete, after at least 5 to 10 rounds, provide a summ
         if self.save_transcript:
             self.transcript.save()
             
-        print(f"\n{Fore.YELLOW}=== Debate Session Ended ==={Style.RESET_ALL}")
+        print(f"\n{Fore.YELLOW}=== Debate Session Ended ==={Style.RESET_ALL}\n")

@@ -1,0 +1,50 @@
+name: Daily Debate Generation
+
+on:
+  schedule:
+    - cron: '0 12 * * *'  # Run daily at 12:00 UTC
+  workflow_dispatch:       # Allow manual triggers for testing
+
+jobs:
+  generate-debate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+          
+      - name: Install Poetry
+        uses: abatilo/actions-poetry@v3
+        with:
+          poetry-version: 'latest'
+          
+      - name: Configure Poetry
+        run: |
+          poetry config virtualenvs.create true
+          poetry config virtualenvs.in-project true
+          
+      - uses: actions/cache@v3
+        name: Cache Poetry dependencies
+        with:
+          path: ./.venv
+          key: venv-${{ hashFiles('poetry.lock') }}
+          
+      - name: Install dependencies
+        run: poetry install
+          
+      - name: Generate new debate
+        run: |
+          poetry run python main.py
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          
+      - name: Commit and push if changed
+        run: |
+          git config --global user.email "github-actions@github.com"
+          git config --global user.name "GitHub Actions"
+          git add debates/ _posts/
+          git diff --quiet && git diff --staged --quiet || git commit -m "Add debate for $(date +%Y-%m-%d)"
+          git push
