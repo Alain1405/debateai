@@ -15,8 +15,8 @@ class Debate:
     def __init__(self, 
                  topic: Dict[str, str], 
                  format: Dict[str, str], 
-                 num_participants: int = 4,
-                 max_iterations: int = 5,
+                 num_participants: int = 10,
+                 max_iterations: int = 50,
                  save_transcript: bool = True,
                  create_blog_post: bool = True,
                  output_dir: str = "_posts"):
