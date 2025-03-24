@@ -122,8 +122,13 @@ The project aims to test:
 - Advanced RAG systems with memory capabilitiesstems with memory capabilities
 - Incremental knowledge development through debate- Incremental knowledge development through debate
 
-TODO:TODO:
+TODO:
 
+- Search most heated topics on Twitter
+- Add selection of participants
+- Add phases to the debate
+- Add names/personalities to the debaters
+- Add a research phase
 - Rag for long shared long term memory
 - Indivudal Rag for each agent for external info and debate memoryo and debate memory
 - Summary for short term memory

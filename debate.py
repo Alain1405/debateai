@@ -9,6 +9,7 @@ from constants import DEBATE_CONFIGS
 from agent_helpers import CustomAgentHooks
 from jekyll_transcript import JekyllPostGenerator
 from pydantic import BaseModel
+from typing import Literal
 
 class Debate:
     def __init__(self, 
@@ -136,6 +137,10 @@ Your responsibilities:
 - Conclude the debate when appropriate points have been discussed
 - Provide a final analysis summarizing key insights and areas of agreement/disagreement
 
+In your response, you must set the 'status' field to indicate whether the debate is still in progress or has concluded:
+- Set status to 'in_progress' when the debate should continue
+- Set status to 'concluded' when you provide your final summary and the debate should end
+
 Start by introducing the topic and format, then hand off to the first participant. After about 5-10 rounds, if the debate has explored the topic thoroughly, work toward a conclusion and final analysis."""
 
         self.host = Agent(
@@ -149,6 +154,7 @@ Start by introducing the topic and format, then hand off to the first participan
 
     class FinalResult(BaseModel):
         summary: str
+        status: Literal["in_progress", "concluded"] = "in_progress"
     
     async def run(self) -> None:
         """Run the debate for the specified number of iterations"""
@@ -166,15 +172,14 @@ Start by introducing the topic and format, then hand off to the first participan
             self.transcript.add_entry(speaker="System", content="Debate begins on topic: " + self.topic["name"])
         
         iteration_count = 0
-        last_speaker = "System"
-        last_content = ""
+        debate_concluded = False
         
-        while iteration_count < self.max_iterations + 1:
+        while iteration_count < self.max_iterations and not debate_concluded:
             iteration_count += 1
             conversation_id = str(uuid.uuid4().hex[:16])
             
             with trace("Debate iteration", group_id=conversation_id):
-                # Run the host agent instead of the moderator
+                # Run the host agent
                 result = await Runner.run(self.host, input=inputs, max_turns=self.max_iterations)
                 
                 # Record the output to transcript
@@ -184,27 +189,28 @@ Start by introducing the topic and format, then hand off to the first participan
                     # Extract content properly from the final_output object
                     if hasattr(result.final_output, "summary"):
                         content = result.final_output.summary
+                        
+                        # Check if the debate has concluded based on the status field
+                        if hasattr(result.final_output, "status") and result.final_output.status == "concluded":
+                            debate_concluded = True
+                            print(f"\n{Fore.GREEN}Host has indicated the debate has concluded.{Style.RESET_ALL}")
+                            if self.save_transcript:
+                                self.transcript.add_entry(speaker="System", 
+                                                         content="Debate concluded with a final summary from the Host.")
                     else:
                         content = str(result.final_output)
                     
                     # Add to transcript
                     self.transcript.add_entry(speaker=speaker_name, content=content)
-                    last_speaker = speaker_name
-                    last_content = content
                 
                 inputs = result.to_input_list()
             
             # Add feedback about remaining iterations
-            if iteration_count >= self.max_iterations:
+            if iteration_count >= self.max_iterations and not debate_concluded:
                 print(f"\n{Fore.RED}Debate reached the maximum of {self.max_iterations} turns and will now end.{Style.RESET_ALL}")
                 if self.save_transcript:
                     self.transcript.add_entry(speaker="System", 
                                              content=f"Debate ended after reaching the maximum of {self.max_iterations} turns.")
-        
-        # Add final summary if available
-        if last_speaker == "Moderator" and "summary" in last_content.lower():
-            if self.save_transcript:
-                self.transcript.add_entry(speaker="System", content="Final debate summary:")
         
         # Save the transcript and generate blog post if requested
         if self.save_transcript:
