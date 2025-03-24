@@ -144,7 +144,7 @@ At the end of your response, you can optionally include a phase indicator like "
             name="Moderator",
             instructions=moderator_prompt,
             hooks=CustomAgentHooks(display_name="Moderator"),
-            model="gpt-4o-mini",
+            model="gpt-4o",
         )
         # Add moderator to the list of debaters so it can be part of handoffs
         self.debaters.append(self.moderator)
@@ -190,7 +190,7 @@ Start by introducing the topic and format, then guide the debate through Phase 1
             handoff_description="Pass the discussion to the next participant or moderator with context.",
             hooks=CustomAgentHooks(display_name="Host"),
             output_type=self.FinalResult,
-            model="gpt-4o-mini",
+            model="gpt-4o",
         )
 
     class FinalResult(BaseModel):
