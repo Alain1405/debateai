@@ -99,7 +99,7 @@ Do not mention debate phases or handoffs in your responses.
     
     def _create_moderator(self) -> None:
         """Create the moderator agent to facilitate constructive debate"""
-        moderator_prompt = f"""You are a debate moderator participating in a debate on {self.topic['name']}. You don't have a position on the topic, but your job is to make the debate more constructive and productive.
+        moderator_prompt = f"""You are a debate moderator participating in a debate on {self.topic['name']}. You don't have a position on the topic, but your job is to make the debate more constructive and productive. The participants are {', '.join([agent.name for agent in self.debaters])}.
 
 Your responsibilities:
 - {DEBATE_CONFIGS['moderator']['role']}
@@ -157,7 +157,7 @@ The debate follows the {self.format['name']} format: {self.format['structure']}
 The objective is to explore different perspectives on the topic, find common ground, and clarify key points of contention.
 
 Your responsibilities:
-- Introduce the debate topic and format
+- Introduce the debate topic, format, participants and moderator ({', '.join([agent.name for agent in self.debaters])})
 - Manage who speaks next, ensuring fair participation, starting from the moderator
 - Handoff based on 5 debate phases:
   1. Opening Statements - Each participant briefly shares their position
