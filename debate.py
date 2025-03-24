@@ -69,6 +69,9 @@ Please engage in any debate by staying true to your persona's beliefs and charac
 The objective of the debate is to explore different perspectives and arguments on the topic, find common ground and clarify the key points of contention and how they relate to key differences in values.
 Your tone is in line with your persona. 
 You want your arguments to be based on facts and logic, and for that you have 2 web searches available to use during the debate. Your searches should be biased by your believes, relevant to the topic and help you make a stronger argument. Reference the source of your data when using it.
+Let the Moderator and Host manage the converastion and handoffs between participants. 
+Follow the moderator guidance and the debate format to ensure a constructive and productive debate.
+Do not mention debate phases or handoffs in your responses.
 """
         
         for persona in DEBATE_CONFIGS["personas"][:self.num_participants]:
@@ -90,6 +93,7 @@ You want your arguments to be based on facts and logic, and for that you have 2 
                 instructions=f"{RECOMMENDED_PROMPT_PREFIX}: {current_prompt}",
                 tools=[WebSearchTool()],
                 hooks=CustomAgentHooks(display_name=persona["name"]),
+                model="gpt-4o-mini",
             )
             self.debaters.append(agent)
     
@@ -104,17 +108,43 @@ Your responsibilities:
 - Ask probing questions to deepen the conversation
 - Reframe heated exchanges in more constructive terms
 - Encourage participants to engage with each other's strongest arguments
+- Signal to the host who should speak next
 - Signal to the host when the debate has reached a satisfactory conclusion
 
 Your key skills:
 {chr(10).join(f'- {skill}' for skill in DEBATE_CONFIGS['moderator']['skills'])}
 
-Focus on enhancing the quality of dialogue rather than controlling who speaks."""
+Focus on enhancing the quality of dialogue rather than controlling who speaks.
+
+🧭 Phase Guidance for Moderator:
+Phase 1 (Opening Statements)
+- Invite each participant to briefly share their position (no interruptions)
+- Once all have spoken, hand off to the moderator to deepen the discussion
+Phase 2 (Clarification & Engagement)
+- Ask participants to explain or summarize each other's views
+- Clarify terminology or assumptions
+- Encourage deep reflection with questions like "What value does that represent for you?" or "Can you express this idea in the best possible terms?"
+- This phase can be repeated up to 3 times to ensure understanding, then we must move one
+
+Phase 3 (Exploration of Disagreement)
+- Identify key areas of friction or difference
+- Ask questions like "Is this a disagreement of values, facts, or priorities?" or "What trade-offs are at play here?"
+- This phase should be repeated between 3 and 6 times, depending on the complexity of the topic and on the extent of the disagreements
+
+
+Phase 4 (Common Ground Discovery)
+- Prompt participants to find overlaps or shared goals with questions like "Do you agree on any underlying concerns?" or "Is there a solution that meets multiple priorities?"
+- Encourage participants to build on each other's ideas
+- Signal the host when common ground has been explored or no further progress is likely
+
+At the end of your response, you can optionally include a phase indicator like "[Current Phase: Clarification, Next Speaker: Speaker Name]" to help the host track debate progress and hand off the conversation.
+"""
 
         self.moderator = Agent(
             name="Moderator",
             instructions=moderator_prompt,
             hooks=CustomAgentHooks(display_name="Moderator"),
+            model="gpt-4o-mini",
         )
         # Add moderator to the list of debaters so it can be part of handoffs
         self.debaters.append(self.moderator)
@@ -128,20 +158,30 @@ The objective is to explore different perspectives on the topic, find common gro
 
 Your responsibilities:
 - Introduce the debate topic and format
-- Manage who speaks next, ensuring fair participation
-- Periodically hand off to the moderator when:
-  - The conversation is stagnating
-  - It's time to move to the next phase of the conversation
-- Recognize when the moderator needs to intervene
-- Periodically invite the moderator to help clarify points or improve dialogue
-- Conclude the debate when appropriate points have been discussed
+- Manage who speaks next, ensuring fair participation, starting from the moderator
+- Handoff based on 5 debate phases:
+  1. Opening Statements - Each participant briefly shares their position
+  2. Clarification & Engagement - Moderator leads understanding of positions
+  3. Exploration of Disagreement - Moderator identifies key tensions
+  4. Common Ground Discovery - Moderator helps find shared values
+  5. Closing & Summary - You provide final analysis
+- Let the moderator guide the conversation through these phases by handing off the conversation to him/her.
 - Provide a final analysis summarizing key insights and areas of agreement/disagreement
+
+🧭 Phase Guidance for Host:
+
+Phase 5 (Closing & Summary)
+- After the moderator signals the conversation has matured, thank participants and summarize:
+  - Core views represented
+  - Key disagreements
+  - Areas of overlap or agreement
+  - Open questions or potential paths forward
 
 In your response, you must set the 'status' field to indicate whether the debate is still in progress or has concluded:
 - Set status to 'in_progress' when the debate should continue
 - Set status to 'concluded' when you provide your final summary and the debate should end
 
-Start by introducing the topic and format, then hand off to the first participant. After about 5-10 rounds, if the debate has explored the topic thoroughly, work toward a conclusion and final analysis."""
+Start by introducing the topic and format, then guide the debate through Phase 1 (Opening Statements) by inviting participants to share their initial positions."""
 
         self.host = Agent(
             name="Host",
@@ -150,6 +190,7 @@ Start by introducing the topic and format, then hand off to the first participan
             handoff_description="Pass the discussion to the next participant or moderator with context.",
             hooks=CustomAgentHooks(display_name="Host"),
             output_type=self.FinalResult,
+            model="gpt-4o-mini",
         )
 
     class FinalResult(BaseModel):
