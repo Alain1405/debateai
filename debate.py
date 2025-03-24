@@ -1,6 +1,5 @@
-import asyncio
 import uuid
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Optional
 from colorama import Fore, Style
 
 from agents import Agent, Runner, WebSearchTool, TResponseInputItem, trace
@@ -26,6 +25,7 @@ class Debate:
         self.max_iterations = max_iterations
         self.debaters: List[Agent] = []
         self.moderator: Optional[Agent] = None
+        self.host: Optional[Agent] = None
         self.save_transcript = save_transcript
         self.create_blog_post = create_blog_post
         self.output_dir = output_dir
@@ -44,8 +44,9 @@ class Debate:
             CustomAgentHooks.transcript_recorder = self.transcript
         
         # Initialize the debate
-        self._create_debaters()
-        self._create_moderator()
+        self._create_debaters()  # First create participants
+        self._create_moderator() # Then create moderator (will be added to debaters)
+        self._create_host()      # Finally create host with handoffs to all debaters + moderator
     
     def _create_debaters(self) -> None:
         """Create the debater agents based on the personas in DEBATE_CONFIGS"""
@@ -92,42 +93,60 @@ You want your arguments to be based on facts and logic, and for that you have 2 
             self.debaters.append(agent)
     
     def _create_moderator(self) -> None:
-        """Create the moderator agent to facilitate the debate"""
-        moderator_prompt = f"""You are a debate moderator. Your role is to facilitate a discussion between {self.num_participants} different personas on the topic of {self.topic['name']}.
-
-The debate follows the {self.format['name']} format: {self.format['structure']}
-The objective of the debate is to explore different perspectives and arguments on the topic, find common ground and clarify the key points of contention and how they relate to key differences in values.
+        """Create the moderator agent to facilitate constructive debate"""
+        moderator_prompt = f"""You are a debate moderator participating in a debate on {self.topic['name']}. You don't have a position on the topic, but your job is to make the debate more constructive and productive.
 
 Your responsibilities:
 - {DEBATE_CONFIGS['moderator']['role']}
-- When handing off to another participant, ALWAYS:
-  1. Summarize the key points discussed so far
-  2. Frame a specific question or point for them to address
-  3. Provide context of who spoke before and their main arguments
-- Ensure each participant gets equal speaking time
-- Guide the discussion according to the {self.format['name']} format
-- Keep the conversation focused on: {self.topic['description']}
-
-Format your handoffs like this:
-"Summary of discussion so far: [summary]
-Previous speaker [name] argued: [main points]
-[Next speaker name], please address: [specific question/point]"
+- Clarify misunderstandings between participants
+- Identify areas of potential agreement
+- Ask probing questions to deepen the conversation
+- Reframe heated exchanges in more constructive terms
+- Encourage participants to engage with each other's strongest arguments
+- Signal to the host when the debate has reached a satisfactory conclusion
 
 Your key skills:
 {chr(10).join(f'- {skill}' for skill in DEBATE_CONFIGS['moderator']['skills'])}
 
-Start by introducing the topic and format, then manage the discussion flow. 
-When the conversation is complete, after at least 5 to 10 rounds, provide a summary of the key points discussed and any areas of agreement or disagreement and then stop."""
+Focus on enhancing the quality of dialogue rather than controlling who speaks."""
 
         self.moderator = Agent(
             name="Moderator",
             instructions=moderator_prompt,
-            handoffs=self.debaters,
-            handoff_description="Pass the discussion to the next participant with context.",
             hooks=CustomAgentHooks(display_name="Moderator"),
+        )
+        # Add moderator to the list of debaters so it can be part of handoffs
+        self.debaters.append(self.moderator)
+
+    def _create_host(self) -> None:
+        """Create the host agent that manages the debate flow"""
+        host_prompt = f"""You are a debate host managing a discussion between {self.num_participants} different personas on the topic of {self.topic['name']}.
+
+The debate follows the {self.format['name']} format: {self.format['structure']}
+The objective is to explore different perspectives on the topic, find common ground, and clarify key points of contention.
+
+Your responsibilities:
+- Introduce the debate topic and format
+- Manage who speaks next, ensuring fair participation
+- Periodically hand off to the moderator when:
+  - The conversation is stagnating
+  - It's time to move to the next phase of the conversation
+- Recognize when the moderator needs to intervene
+- Periodically invite the moderator to help clarify points or improve dialogue
+- Conclude the debate when appropriate points have been discussed
+- Provide a final analysis summarizing key insights and areas of agreement/disagreement
+
+Start by introducing the topic and format, then hand off to the first participant. After about 5-10 rounds, if the debate has explored the topic thoroughly, work toward a conclusion and final analysis."""
+
+        self.host = Agent(
+            name="Host",
+            instructions=host_prompt,
+            handoffs=self.debaters,
+            handoff_description="Pass the discussion to the next participant or moderator with context.",
+            hooks=CustomAgentHooks(display_name="Host"),
             output_type=self.FinalResult,
         )
-    
+
     class FinalResult(BaseModel):
         summary: str
     
@@ -155,12 +174,12 @@ When the conversation is complete, after at least 5 to 10 rounds, provide a summ
             conversation_id = str(uuid.uuid4().hex[:16])
             
             with trace("Debate iteration", group_id=conversation_id):
-                # Run the agent
-                result = await Runner.run(self.moderator, input=inputs, max_turns=self.max_iterations)
+                # Run the host agent instead of the moderator
+                result = await Runner.run(self.host, input=inputs, max_turns=self.max_iterations)
                 
-                # Record the output to transcript - use final_output instead of response
+                # Record the output to transcript
                 if self.save_transcript and hasattr(result, "final_output"):
-                    speaker_name = hasattr(result, "last_agent") and result.last_agent.name or "Moderator"
+                    speaker_name = hasattr(result, "last_agent") and result.last_agent.name or "Host"
                     
                     # Extract content properly from the final_output object
                     if hasattr(result.final_output, "summary"):
